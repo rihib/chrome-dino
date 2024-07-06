@@ -1,14 +1,13 @@
 /*
 要件
-- ChromeのDinosaur Gameをアレンジしたもの - chrome://dino
-- Spaceでジャンプ
-- ジャンプの時は対空時間と移動するX軸とY軸を変数とする
-- 障害物との衝突判定 - https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection
+- chrome://dino
+- https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection
 - ゲームが進むにつれて障害物の速度が加速していく
 - 障害物の種類を複数用意する（高低、幅の違い）
+- 障害物やdinoの形をデザインする
 - 避けた障害物の数をスコアとする
 - 衝突したらスコアとGAME OVERという文字とRetryボタンを表示する
-- クラスを使うようにリファクタする
+- 何か面白いトリックを１つ考える
 */
 
 /*
@@ -45,11 +44,6 @@ int obstacleDX, obstacleDY;
 int currJumpDuration;
 boolean isJumping;
 
-// Jump_old
-int jumpSpeed = 15;
-int fallSpeed = 2;
-int gravity = 1;
-
 void settings() {
   size(DISPLAY_WIDTH, DISPLAY_HEIGHT);
 }
@@ -59,19 +53,16 @@ void setup() {
   dino = new Dino();
   obstacle = new Obstacle();
   
-  //dino
   dinoAX = dinoCX = OFFSET;
   dinoBX = dinoDX = dinoAX + DINO_WIDTH;
   dinoAY = dinoBY = GROUND_Y - DINO_HEIGHT;
   dinoCY = dinoDY = GROUND_Y;
   
-  // obstacle
   obstacleAX = obstacleCX = DISPLAY_WIDTH;
   obstacleBX = obstacleDX = obstacleAX + OBSTACLE_WIDTH;
   obstacleAY = obstacleBY = GROUND_Y - OBSTACLE_HEIGHT;
   obstacleCY = obstacleDY = GROUND_Y;
   
-  // Jump
   currJumpDuration = 0;
   isJumping = false;
 }
@@ -105,6 +96,7 @@ class Dino {
         isJumping = false;
         return;
       }
+      
       if (currJumpDuration <= JUMP_DURATION / 2) {
         dinoAY -= JUMP_HEIGHT / JUMP_DURATION;
       }
