@@ -1,67 +1,37 @@
 /*
-- chrome://dino
-- https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection
-- ゲームが進むにつれて障害物の速度が加速していく
-- 障害物の種類を複数用意する（高低、幅の違い）
-- 避けた障害物の数をスコアとする
-- 衝突したらスコアとGAME OVERという文字とRetryボタンを表示する
-- 何か面白いトリックを１つ考える
+chrome://dino
 */
 
 /*
-A-----B
-|     |
-|     |
-C-----D
+TODO:
+- display Game Over and Retry button, score when collision occurs
+- ignore 0 pixels in Dino and Obstacle for collision detection
+- speed up the obstacle as the game progresses
+- prepare multiple types of obstacles (different heights and widths)
+- display the number of obstacles avoided as the score
+- use SAT for collision detection (https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection)
 */
-
-final int DISPLAY_WIDTH = 800;
-final int DISPLAY_HEIGHT = 400;
-final int GROUND_Y = DISPLAY_HEIGHT - 50;
-final int DINO_WIDTH = 60;
-final int DINO_HEIGHT = 120;
-final int OFFSET = 50;
-final int OBSTACLE_WIDTH = 60;
-final int OBSTACLE_HEIGHT = 130;
-final int OBSTACLE_SPEED = 5;
-final int JUMP_HEIGHT = 400;
-final int JUMP_DURATION = 50;
 
 Ground ground;
 Dino dino;
 Obstacle obstacle;
 
-int dinoAX, dinoAY;
-int dinoBX, dinoBY;
-int dinoCX, dinoCY;
-int dinoDX, dinoDY;
-int obstacleAX, obstacleAY;
-int obstacleBX, obstacleBY;
-int obstacleCX, obstacleCY;
-int obstacleDX, obstacleDY;
-int currJumpDuration;
+int groundY;
+int elapsedTime;
 boolean isJumping;
 
 void settings() {
-  size(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+  size(800, 600);
 }
 
 void setup() {
-  ground = new Ground();
-  dino = new Dino();
-  obstacle = new Obstacle();
+  groundY = height - 50;
   
-  dinoAX = dinoCX = OFFSET;
-  dinoBX = dinoDX = dinoAX + DINO_WIDTH;
-  dinoAY = dinoBY = GROUND_Y - DINO_HEIGHT;
-  dinoCY = dinoDY = GROUND_Y;
+  ground = new Ground(10);
+  dino = new Dino(50);
+  obstacle = new Obstacle(width);
   
-  obstacleAX = obstacleCX = DISPLAY_WIDTH;
-  obstacleBX = obstacleDX = obstacleAX + OBSTACLE_WIDTH;
-  obstacleAY = obstacleBY = GROUND_Y - OBSTACLE_HEIGHT;
-  obstacleCY = obstacleDY = GROUND_Y;
-  
-  currJumpDuration = 0;
+  elapsedTime = 0;
   isJumping = false;
 }
 
@@ -69,138 +39,166 @@ void draw() {
   background(255);
   ground.show();
   dino.show();
-  dino.jump();
+  dino.jump(300, 50);
   obstacle.show();
-  obstacle.move();
+  obstacle.move(10);
   collision();
 }
 
 class Ground {
+  int offsetY;
+  
+  Ground(int offsetY) {
+    this.offsetY = offsetY;
+  }
+  
   void show() {
-    strokeWeight(3);
     stroke(95, 99, 104);
-    line(0, GROUND_Y - 10, DISPLAY_WIDTH, GROUND_Y - 10);
+    strokeWeight(3);
+    line(0, groundY - this.offsetY, width, groundY - this.offsetY);
   }
 }
 
 class Dino {
+  int[][] pixels = {
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0} ,
+    {1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0} ,
+    {1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
+    {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+  };
+  int pixelSize = 5;
+  int originX;
+  int originY = initOriginY();
+  
+  Dino(int originX) {
+    this.originX = originX;
+  }
+  
   void show() {
-    int pixelSize = 5;
     noStroke();
-    
-    int[][] dinoPixels = {
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0} ,
-      {1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0} ,
-      {1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0} ,
-      {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-    };
-    
-    for (int i = 0; i < dinoPixels.length; i++) {
-      for (int j = 0; j < dinoPixels[0].length; j++) {
-        if (dinoPixels[i][j] == 1) {
+    for (int i = 0; i < pixels.length; i++) {
+      for (int j = 0; j < pixels[0].length; j++) {
+        if (pixels[i][j] == 1) {
           fill(95, 99, 104);
-          rect(dinoAX + j * pixelSize, dinoAY + i * pixelSize, pixelSize, pixelSize);
+          rect(this.originX + j * pixelSize, originY + i * pixelSize, pixelSize, pixelSize);
         }
       }
     }
   }
   
-  void jump() {
+  void jump(int maxHeight, int hangTime) {
     if (isJumping) {
-      if (JUMP_DURATION < currJumpDuration) {
-        dinoAY = GROUND_Y - DINO_HEIGHT;
-        currJumpDuration = 0;
+      if (hangTime < elapsedTime) {
+        originY = initOriginY();
+        elapsedTime = 0;
         isJumping = false;
         return;
       }
-      
-      if (currJumpDuration <= JUMP_DURATION / 2) {
-        dinoAY -= JUMP_HEIGHT / JUMP_DURATION;
+      int halfTime = hangTime / 2;
+      if (elapsedTime <= halfTime) {
+        originY -= maxHeight / halfTime;
       }
-      if (JUMP_DURATION / 2 < currJumpDuration) {
-        dinoAY += JUMP_HEIGHT / JUMP_DURATION;
+      if (halfTime < elapsedTime) {
+        originY += maxHeight / halfTime;
       }
-      currJumpDuration++;
+      elapsedTime++;
     }
+  }
+  
+  int initOriginY() {
+    return groundY - pixels.length * pixelSize;
   }
 }
 
 class Obstacle {
+  int[][] pixels = {
+    {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0} ,
+    {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+    {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
+  };
+  int pixelSize = 5;
+  int originX;
+  int originY = initOriginY();
+  
+  Obstacle(int originX) {
+    this.originX = originX;
+  }
+  
   void show() {
-    int pixelSize = 5;
     noStroke();
-    
-    int[][] obstaclePixels = {
-      {0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0} ,
-      {0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-      {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-    };
-    
-    for (int i = 0; i < obstaclePixels.length; i++) {
-      for (int j = 0; j < obstaclePixels[0].length; j++) {
-        if (obstaclePixels[i][j] == 1) {
+    for (int i = 0; i < pixels.length; i++) {
+      for (int j = 0; j < pixels[0].length; j++) {
+        if (pixels[i][j] == 1) {
           fill(95, 99, 104);
-          rect(obstacleAX + j * pixelSize, obstacleAY + i * pixelSize, pixelSize, pixelSize);
+          rect(this.originX + j * pixelSize, originY + i * pixelSize, pixelSize, pixelSize);
         }
       }
     }
   }
   
-  
-  void move() {
-    obstacleAX -= OBSTACLE_SPEED;
-    if (obstacleBX < 0) {
-      obstacleAX = DISPLAY_WIDTH;
+  void move(int speed) {
+    this.originX -= speed;
+    if (this.originX + pixels[0].length * pixelSize < 0) {
+      this.originX = width;
     }
-    obstacleBX = obstacleAX + OBSTACLE_WIDTH;
+  }
+  
+  int initOriginY() {
+    return groundY - pixels.length * pixelSize;
   }
 }
 
 void collision() {
-  if (false) {
+  int dinoWidth = dino.pixels[0].length * dino.pixelSize;
+  int dinoHeight = dino.pixels.length * dino.pixelSize;
+  int obstacleWidth = obstacle.pixels[0].length * obstacle.pixelSize;
+  int obstacleHeight = obstacle.pixels.length * obstacle.pixelSize;
+  
+  if (dino.originX < obstacle.originX + obstacleWidth && dino.originX + dinoWidth > obstacle.originX && 
+    dino.originY < obstacle.originY + obstacleHeight && dino.originY + dinoHeight > obstacle.originY) {
     noLoop();
   }
 }
