@@ -4,12 +4,11 @@ chrome://dino
 
 /*
 TODO:
-- display the number of obstacles avoided as the score
-- display Game Over and Retry button, score when collision occurs
 - ignore 0 pixels in Dino and Obstacle for collision detection
-- speed up the obstacle as the game progresses
 - prepare multiple types of obstacles (different heights and widths)
 - use SAT for collision detection (https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection)
+- Retry botton
+- use gravitational acceleration for jumping
 */
 
 Ground ground;
@@ -18,23 +17,29 @@ Obstacle obstacle;
 
 int groundY;
 int score;
+int speed;
 int elapsedTime;
 boolean isJumping;
 
+PFont font;
+
 void settings() {
-  size(800, 600);
+  size(1200, 750);
 }
 
 void setup() {
-  groundY = height - 50;
+  groundY = height / 2;
+  score = 0;
+  speed = 10;
+  elapsedTime = 0;
+  isJumping = false;
   
   ground = new Ground(10);
   dino = new Dino(50);
   obstacle = new Obstacle(width);
   
-  score = 0;
-  elapsedTime = 0;
-  isJumping = false;
+  font = font = loadFont("HanziPenSC-W5-48.vlw");
+  textFont(font);
 }
 
 void draw() {
@@ -43,8 +48,13 @@ void draw() {
   dino.show();
   dino.jump(300, 50);
   obstacle.show();
-  obstacle.move(10);
+  obstacle.move();
   collision();
+  
+  fill(95, 99, 104);
+  textSize(32);
+  textAlign(RIGHT, TOP);
+  text("Score: " + score + "  Speed: " + speed, width - 20, groundY - 300);
 }
 
 class Ground {
@@ -88,7 +98,7 @@ class Dino extends Entity {
       {0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-    } , 5, originX);
+    } , originX);
   }
   
   void jump(int maxHeight, int hangTime) {
@@ -140,14 +150,17 @@ class Obstacle extends Entity {
       {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
       {0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
       {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0} ,
-    } , 5, originX);
+    } , originX);
   }
   
-  void move(int speed) {
+  void move() {
     this.originX -= speed;
     if (this.originX + pixels[0].length * pixelSize < 0) {
       this.originX = width;
       score++;
+      if (score % 5 == 0) {
+        speed++;
+      }
     }
   }
 }
@@ -158,9 +171,9 @@ abstract class Entity {
   int originX;
   int originY;
   
-  Entity(int[][] pixels, int pixelSize, int originX) {
+  Entity(int[][] pixels, int originX) {
     this.pixels = pixels;
-    this.pixelSize = pixelSize;
+    this.pixelSize = 4;
     this.originX = originX;
     this.originY = initOriginY();
   }
@@ -191,6 +204,10 @@ void collision() {
   if (dino.originX < obstacle.originX + obstacleWidth && dino.originX + dinoWidth > obstacle.originX && 
     dino.originY < obstacle.originY + obstacleHeight && dino.originY + dinoHeight > obstacle.originY) {
     noLoop();
+    fill(95, 99, 104);
+    textSize(64);
+    textAlign(CENTER, CENTER);
+    text("GAME OVER!!", width / 2, groundY - 100);
   }
 }
 
