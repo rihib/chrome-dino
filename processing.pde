@@ -4,11 +4,9 @@ chrome://dino
 
 /*
 TODO:
-- ignore 0 pixels in Dino and Obstacle for collision detection
-- prepare multiple types of obstacles (different heights and widths)
 - use SAT for collision detection (https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection)
-- Retry botton
-- use gravitational acceleration for jumping
+- prepare multiple types of obstacles (different heights and widths)
+- add Moon Mode
 */
 
 Ground ground;
@@ -18,7 +16,6 @@ Obstacle obstacle;
 int groundY;
 int score;
 int speed;
-int elapsedTime;
 boolean isJumping;
 
 PFont font;
@@ -31,7 +28,6 @@ void setup() {
   groundY = height / 2;
   score = 0;
   speed = 10;
-  elapsedTime = 0;
   isJumping = false;
   
   ground = new Ground(10);
@@ -72,6 +68,10 @@ class Ground {
 }
 
 class Dino extends Entity {
+  float velocityY;
+  float gravity = 0.98;
+  int jumpPower = 25;
+  
   Dino(int originX) {
     super(new int[][]{
       {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0} ,
@@ -103,20 +103,14 @@ class Dino extends Entity {
   
   void jump(int maxHeight, int hangTime) {
     if (isJumping) {
-      if (hangTime < elapsedTime) {
+      if (originY > initOriginY()) {
+        velocityY = 0;
         originY = initOriginY();
-        elapsedTime = 0;
         isJumping = false;
-        return;
+      } else {
+        velocityY += gravity;
+        originY += velocityY;
       }
-      int halfTime = hangTime / 2;
-      if (elapsedTime <= halfTime) {
-        originY -= maxHeight / halfTime;
-      }
-      if (halfTime < elapsedTime) {
-        originY += maxHeight / halfTime;
-      }
-      elapsedTime++;
     }
   }
 }
@@ -214,5 +208,6 @@ void collision() {
 void keyPressed() {
   if (key == ' ' && !isJumping) {
     isJumping = true;
+    dino.velocityY = -dino.jumpPower;
   }
 }
