@@ -25,7 +25,7 @@ void setup() {
   dino = new Dino(50);
   obstacle = new Obstacle(width);
   
-  font = font = loadFont("HanziPenSC-W5-48.vlw");
+  font = loadFont("HanziPenSC-W5-48.vlw");
   textFont(font);
 }
 
