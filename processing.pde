@@ -2,12 +2,6 @@
 chrome://dino
 */
 
-/*
-TODO:
-- prepare multiple types of obstacles (different heights and widths)
-- add Moon Mode
-*/
-
 Ground ground;
 Dino dino;
 Obstacle obstacle;
@@ -16,6 +10,7 @@ int groundY;
 int score;
 int speed;
 boolean isJumping;
+boolean isMoonMode;
 
 PFont font;
 
@@ -28,6 +23,7 @@ void setup() {
   score = 0;
   speed = 10;
   isJumping = false;
+  isMoonMode = false;
   
   ground = new Ground(10);
   dino = new Dino(50);
@@ -101,6 +97,10 @@ class Dino extends Entity {
   }
   
   void jump(int maxHeight, int hangTime) {
+    if (isMoonMode) {
+      gravity = 0.162;
+      jumpPower = 10;
+    }
     if (isJumping) {
       if (originY > initOriginY()) {
         velocityY = 0;
@@ -228,5 +228,8 @@ void keyPressed() {
   if (key == ' ' && !isJumping) {
     isJumping = true;
     dino.velocityY = -dino.jumpPower;
+  }
+  if (key == 'm' && !isJumping) {
+    isMoonMode = true;
   }
 }
