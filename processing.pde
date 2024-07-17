@@ -1,7 +1,3 @@
-/*
-chrome://dino
-*/
-
 Ground ground;
 Dino dino;
 Obstacle obstacle;

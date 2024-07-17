@@ -1,3 +1,10 @@
-# My Processing Sketches
+# dino game
 
-My Open Processing Profile: [rihib](https://openprocessing.org/user/439409/)
+Like [chrome://dino](chrome://dino) game, but in Processing.
+
+## How to play
+
+![chrome-dino.gif](chrome-dino.gif)
+
+- Press `SPACE` to jump
+- Press `m` to Moon Mode
