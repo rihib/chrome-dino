@@ -4,7 +4,6 @@ chrome://dino
 
 /*
 TODO:
-- use SAT for collision detection (https://developer.mozilla.org/ja/docs/Games/Techniques/2D_collision_detection)
 - prepare multiple types of obstacles (different heights and widths)
 - add Moon Mode
 */
@@ -197,13 +196,33 @@ void collision() {
   
   if (dino.originX < obstacle.originX + obstacleWidth && dino.originX + dinoWidth > obstacle.originX && 
     dino.originY < obstacle.originY + obstacleHeight && dino.originY + dinoHeight > obstacle.originY) {
-    noLoop();
-    fill(95, 99, 104);
-    textSize(64);
-    textAlign(CENTER, CENTER);
-    text("GAME OVER!!", width / 2, groundY - 100);
+    for (int i = 0; i < dino.pixels.length; i++) {
+      for (int j = 0; j < dino.pixels[i].length; j++) {
+        if (dino.pixels[i][j] == 1) {
+          int dinoPixelX = dino.originX + j * dino.pixelSize;
+          int dinoPixelY = dino.originY + i * dino.pixelSize;
+          for (int k = 0; k < obstacle.pixels.length; k++) {
+            for (int l = 0; l < obstacle.pixels[k].length; l++) {
+              if (obstacle.pixels[k][l] == 1) {
+                int obstaclePixelX = obstacle.originX + l * obstacle.pixelSize;
+                int obstaclePixelY = obstacle.originY + k * obstacle.pixelSize;
+                if (dinoPixelX == obstaclePixelX && dinoPixelY == obstaclePixelY) {
+                  noLoop();
+                  fill(95, 99, 104);
+                  textSize(64);
+                  textAlign(CENTER, CENTER);
+                  text("GAME OVER!!", width / 2, groundY - 100);
+                  return;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }
+
 
 void keyPressed() {
   if (key == ' ' && !isJumping) {
